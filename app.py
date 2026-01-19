@@ -3,56 +3,88 @@ import pandas as pd
 import plotly.graph_objects as go
 
 st.set_page_config(layout="wide", page_title="Interactive VWAP Chart")
-st.title("📈 Interactive VWAP (HLC) Chart")
+st.title("📈 Interactive VWAP (HLC) Chart with Timeframe Selector")
 
-uploaded_file = st.file_uploader("Upload CSV or Excel file", type=["csv", "xlsx"])
+# Upload file
+uploaded_file = st.file_uploader("Upload CSV or Excel file (no header needed)", type=["csv", "xlsx"])
+
+# Select timeframe
+timeframe = st.selectbox(
+    "Select timeframe",
+    options=["1 min", "5 min", "10 min", "1 hour"]
+)
+
+# Map selectbox to pandas resample rule
+resample_map = {
+    "1 min": "1T",
+    "5 min": "5T",
+    "10 min": "10T",
+    "1 hour": "1H"
+}
 
 def load_file(file):
     if file.name.endswith(".csv"):
-        # No headers in CSV
         df = pd.read_csv(file, header=None)
     else:
-        # No headers in Excel
         df = pd.read_excel(file, header=None)
-    # Assign standard column names
+    # Assign standard columns
     df.columns = ["date", "timestamp", "o", "h", "l", "c","volume","other1"]
     return df
 
 def compute_vwap(df):
-    tp = (df["h"] + df["l"] + df["c"]) / 3
-    vol = df["volume"]
+    """VWAP using unit volume if no volume column"""
+    tp = (df["high"] + df["low"] + df["close"]) / 3
+    vol = pd.Series(1, index=df.index)  # <- fixed
     return (tp * vol).cumsum() / vol.cumsum()
+
 
 if uploaded_file:
     df = load_file(uploaded_file)
 
-    # Combine date + timestamp into datetime
+    # Combine date + timestamp
     df["datetime"] = pd.to_datetime(df["date"].astype(str) + " " + df["timestamp"].astype(str))
-    
+
     # Map OHLC
     df["open"] = df["o"]
     df["high"] = df["h"]
     df["low"] = df["l"]
     df["close"] = df["c"]
+    df["volume"] = df["volume"]
+    df.set_index("datetime", inplace=True)
+    df.sort_index(inplace=True)
 
-    df.sort_values("datetime", inplace=True)
-    df["vwap"] = compute_vwap(df)
+    # --- Resample based on selected timeframe ---
+    rule = resample_map[timeframe]
 
+    df_resampled = pd.DataFrame()
+    df_resampled["open"] = df["open"].resample(rule).first()
+    df_resampled["high"] = df["high"].resample(rule).max()
+    df_resampled["low"] = df["low"].resample(rule).min()
+    df_resampled["close"] = df["close"].resample(rule).last()
+
+    df_resampled.dropna(inplace=True)  # remove periods with no data
+
+    df_resampled["vwap"] = compute_vwap(df_resampled)
+    df_resampled.reset_index(inplace=True)
+
+    # --- Plotting ---
     fig = go.Figure()
+
     # Candlestick
     fig.add_trace(go.Candlestick(
-        x=df["datetime"],
-        open=df["open"],
-        high=df["high"],
-        low=df["low"],
-        close=df["close"],
+        x=df_resampled["datetime"],
+        open=df_resampled["open"],
+        high=df_resampled["high"],
+        low=df_resampled["low"],
+        close=df_resampled["close"],
         name="Price",
         hovertemplate="<b>%{x}</b><br>Open: %{open}<br>High: %{high}<br>Low: %{low}<br>Close: %{close}<extra></extra>"
     ))
+
     # VWAP
     fig.add_trace(go.Scatter(
-        x=df["datetime"],
-        y=df["vwap"],
+        x=df_resampled["datetime"],
+        y=df_resampled["vwap"],
         mode="lines",
         name="VWAP (HLC)",
         line=dict(width=2)
@@ -63,7 +95,6 @@ if uploaded_file:
         xaxis=dict(
             title="Time",
             tickformat="%H:%M",
-            dtick=5 * 60 * 1000,
             rangeslider=dict(visible=False)
         ),
         yaxis=dict(title="Price"),
@@ -72,5 +103,6 @@ if uploaded_file:
     )
 
     st.plotly_chart(fig, use_container_width=True)
+
 else:
     st.info("⬆ Upload your CSV or Excel file (no headers is fine) to view the chart")
