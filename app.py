@@ -11,7 +11,7 @@ uploaded_file = st.file_uploader("Upload CSV or Excel file (no header needed)", 
 # Select timeframe
 timeframe = st.selectbox(
     "Select timeframe",
-    options=["1 min", "5 min", "10 min", "1 hour"]
+    options=["1 min", "5 min", "10 min", "15 min", "1 hour"]
 )
 
 # Map selectbox to pandas resample rule
@@ -19,6 +19,7 @@ resample_map = {
     "1 min": "1T",
     "5 min": "5T",
     "10 min": "10T",
+    "15 min": "15T",
     "1 hour": "1H"
 }
 
@@ -43,6 +44,23 @@ if uploaded_file:
 
     # Combine date + timestamp
     df["datetime"] = pd.to_datetime(df["date"].astype(str) + " " + df["timestamp"].astype(str))
+
+    # Select a single trading date to plot
+    available_dates = sorted(df["datetime"].dt.date.unique())
+    if not available_dates:
+        st.error("No valid dates found in the file.")
+        st.stop()
+
+    selected_date = st.selectbox(
+        "Select trading date",
+        options=available_dates,
+        format_func=lambda d: d.strftime("%Y-%m-%d")
+    )
+
+    df = df[df["datetime"].dt.date == selected_date]
+    if df.empty:
+        st.warning("No data for the selected date.")
+        st.stop()
 
     # Map OHLC
     df["open"] = df["o"]
@@ -95,6 +113,7 @@ if uploaded_file:
         xaxis=dict(
             title="Time",
             tickformat="%H:%M",
+            dtick=15 * 60 * 1000,
             rangeslider=dict(visible=False)
         ),
         yaxis=dict(title="Price"),
