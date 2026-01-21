@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 st.set_page_config(layout="wide", page_title="Interactive VWAP Chart")
 st.title("📈 Interactive VWAP (HLC) Chart with Timeframe Selector")
@@ -33,9 +34,10 @@ def load_file(file):
     return df
 
 def compute_vwap(df):
-    """VWAP using unit volume if no volume column"""
+    """VWAP using provided volume, defaulting to unit volume when missing."""
     tp = (df["high"] + df["low"] + df["close"]) / 3
-    vol = pd.Series(1, index=df.index)  # <- fixed
+    vol = df.get("volume", pd.Series(1, index=df.index))
+    vol = vol.fillna(0)
     return (tp * vol).cumsum() / vol.cumsum()
 
 
@@ -79,6 +81,7 @@ if uploaded_file:
     df_resampled["high"] = df["high"].resample(rule).max()
     df_resampled["low"] = df["low"].resample(rule).min()
     df_resampled["close"] = df["close"].resample(rule).last()
+    df_resampled["volume"] = df["volume"].resample(rule).sum()
 
     df_resampled.dropna(inplace=True)  # remove periods with no data
 
@@ -86,39 +89,76 @@ if uploaded_file:
     df_resampled.reset_index(inplace=True)
 
     # --- Plotting ---
-    fig = go.Figure()
+    fig = make_subplots(
+        rows=2,
+        cols=1,
+        shared_xaxes=True,
+        vertical_spacing=0.02,
+        row_heights=[0.7, 0.3]
+    )
 
-    # Candlestick
-    fig.add_trace(go.Candlestick(
-        x=df_resampled["datetime"],
-        open=df_resampled["open"],
-        high=df_resampled["high"],
-        low=df_resampled["low"],
-        close=df_resampled["close"],
-        name="Price",
-        hovertemplate="<b>%{x}</b><br>Open: %{open}<br>High: %{high}<br>Low: %{low}<br>Close: %{close}<extra></extra>"
-    ))
+    fig.add_trace(
+        go.Candlestick(
+            x=df_resampled["datetime"],
+            open=df_resampled["open"],
+            high=df_resampled["high"],
+            low=df_resampled["low"],
+            close=df_resampled["close"],
+            name="Price",
+            hovertemplate="<b>%{x}</b><br>Open: %{open}<br>High: %{high}<br>Low: %{low}<br>Close: %{close}<extra></extra>"
+        ),
+        row=1,
+        col=1
+    )
 
-    # VWAP
-    fig.add_trace(go.Scatter(
-        x=df_resampled["datetime"],
-        y=df_resampled["vwap"],
-        mode="lines",
-        name="VWAP (HLC)",
-        line=dict(width=2)
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=df_resampled["datetime"],
+            y=df_resampled["vwap"],
+            mode="lines",
+            name="VWAP (HLC)",
+            line=dict(width=2)
+        ),
+        row=1,
+        col=1
+    )
+
+    fig.add_trace(
+        go.Bar(
+            x=df_resampled["datetime"],
+            y=df_resampled["volume"],
+            name="Volume",
+            marker_color="rgba(100, 149, 237, 0.6)",
+            showlegend=False
+        ),
+        row=2,
+        col=1
+    )
+
+    fig.update_yaxes(
+        title_text="Price",
+        tickformat=",.0f",
+        separatethousands=True,
+        row=1,
+        col=1
+    )
+    fig.update_yaxes(
+        title_text="Volume",
+        tickformat=".3s",
+        separatethousands=True,
+        rangemode="tozero",
+        showgrid=False,
+        row=2,
+        col=1
+    )
+    fig.update_xaxes(title_text="Time", tickformat="%H:%M", dtick=15 * 60 * 1000, row=2, col=1)
 
     fig.update_layout(
-        height=750,
-        xaxis=dict(
-            title="Time",
-            tickformat="%H:%M",
-            dtick=15 * 60 * 1000,
-            rangeslider=dict(visible=False)
-        ),
-        yaxis=dict(title="Price"),
+        height=850,
+        bargap=0,
         hovermode="x unified",
-        legend=dict(orientation="h", y=1.02, x=1, xanchor="right")
+        legend=dict(orientation="h", y=1.02, x=1, xanchor="right"),
+        xaxis_rangeslider_visible=False
     )
 
     st.plotly_chart(fig, use_container_width=True)
