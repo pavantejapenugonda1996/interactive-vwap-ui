@@ -88,6 +88,11 @@ if uploaded_file:
     df_resampled["vwap"] = compute_vwap(df_resampled)
     df_resampled.reset_index(inplace=True)
 
+    # Align colors between candles and volume bars using the same up/down palette
+    up_color = "#2ca02c"
+    down_color = "#d62728"
+    volume_colors = [up_color if c >= o else down_color for o, c in zip(df_resampled["open"], df_resampled["close"])]
+
     # --- Plotting ---
     fig = make_subplots(
         rows=2,
@@ -105,6 +110,10 @@ if uploaded_file:
             low=df_resampled["low"],
             close=df_resampled["close"],
             name="Price",
+            increasing_line_color=up_color,
+            increasing_fillcolor=up_color,
+            decreasing_line_color=down_color,
+            decreasing_fillcolor=down_color,
             hovertemplate="<b>%{x}</b><br>Open: %{open}<br>High: %{high}<br>Low: %{low}<br>Close: %{close}<extra></extra>"
         ),
         row=1,
@@ -128,7 +137,7 @@ if uploaded_file:
             x=df_resampled["datetime"],
             y=df_resampled["volume"],
             name="Volume",
-            marker_color="rgba(100, 149, 237, 0.6)",
+            marker_color=volume_colors,
             showlegend=False
         ),
         row=2,
