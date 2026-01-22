@@ -95,13 +95,7 @@ if uploaded_file:
     volume_colors = [up_color if c >= o else down_color for o, c in zip(df_resampled["open"], df_resampled["close"])]
 
     # --- Plotting ---
-    fig = make_subplots(
-        rows=2,
-        cols=1,
-        shared_xaxes=True,
-        vertical_spacing=0.02,
-        row_heights=[0.7, 0.3]
-    )
+    fig = make_subplots(rows=1, cols=1, specs=[[{"secondary_y": True}]])
 
     fig.add_trace(
         go.Candlestick(
@@ -118,7 +112,8 @@ if uploaded_file:
             hovertemplate="<b>%{x}</b><br>Open: %{open}<br>High: %{high}<br>Low: %{low}<br>Close: %{close}<extra></extra>"
         ),
         row=1,
-        col=1
+        col=1,
+        secondary_y=False
     )
 
     fig.add_trace(
@@ -131,7 +126,8 @@ if uploaded_file:
             hovertemplate="<b>%{x}</b><br>VWAP: %{y:.2f}<extra></extra>"
         ),
         row=1,
-        col=1
+        col=1,
+        secondary_y=False
     )
 
     fig.add_trace(
@@ -140,33 +136,19 @@ if uploaded_file:
             y=df_resampled["volume"],
             name="Volume",
             marker_color=volume_colors,
-            showlegend=False
-        ),
-        row=2,
-        col=1
-    )
-
-    fig.add_trace(
-        go.Scatter(
-            x=df_resampled["datetime"],
-            y=df_resampled["volume"],
-            mode="lines",
-            name="Volume trend",
-            line=dict(color="#7f7f7f", dash="dot", width=1.5),
-            hoverinfo="skip",
             showlegend=False,
-            connectgaps=True
+            opacity=0.35
         ),
-        row=2,
-        col=1
+        row=1,
+        col=1,
+        secondary_y=True
     )
 
     fig.update_yaxes(
         title_text="Price",
         tickformat=",.2f",
         separatethousands=True,
-        row=1,
-        col=1
+        secondary_y=False
     )
     fig.update_yaxes(
         title_text="Volume",
@@ -174,13 +156,12 @@ if uploaded_file:
         separatethousands=True,
         rangemode="tozero",
         showgrid=False,
-        row=2,
-        col=1
+        secondary_y=True
     )
-    fig.update_xaxes(title_text="Time", tickformat="%H:%M", dtick=15 * 60 * 1000, row=2, col=1)
+    fig.update_xaxes(title_text="Time", tickformat="%H:%M", dtick=15 * 60 * 1000)
 
     fig.update_layout(
-        height=850,
+        height=750,
         bargap=0,
         hovermode="x unified",
         legend=dict(orientation="h", y=1.02, x=1, xanchor="right"),
