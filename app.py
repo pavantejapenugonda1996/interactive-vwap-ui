@@ -69,7 +69,8 @@ if uploaded_file:
     df["high"] = df["h"]
     df["low"] = df["l"]
     df["close"] = df["c"]
-    df["volume"] = df["volume"]
+    # Ensure volume is numeric and gap-free so the dotted line stays continuous
+    df["volume"] = pd.to_numeric(df["volume"], errors="coerce").fillna(0)
     df.set_index("datetime", inplace=True)
     df.sort_index(inplace=True)
 
@@ -153,7 +154,8 @@ if uploaded_file:
             name="Volume trend",
             line=dict(color="#7f7f7f", dash="dot", width=1.5),
             hoverinfo="skip",
-            showlegend=False
+            showlegend=False,
+            connectgaps=True
         ),
         row=2,
         col=1
