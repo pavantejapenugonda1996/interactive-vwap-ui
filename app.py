@@ -126,7 +126,8 @@ if uploaded_file:
             y=df_resampled["vwap"],
             mode="lines",
             name="VWAP (HLC)",
-            line=dict(width=2)
+            line=dict(width=2),
+            hovertemplate="<b>%{x}</b><br>VWAP: %{y:.2f}<extra></extra>"
         ),
         row=1,
         col=1
@@ -144,9 +145,23 @@ if uploaded_file:
         col=1
     )
 
+    fig.add_trace(
+        go.Scatter(
+            x=df_resampled["datetime"],
+            y=df_resampled["volume"],
+            mode="lines",
+            name="Volume trend",
+            line=dict(color="#7f7f7f", dash="dot", width=1.5),
+            hoverinfo="skip",
+            showlegend=False
+        ),
+        row=2,
+        col=1
+    )
+
     fig.update_yaxes(
         title_text="Price",
-        tickformat=",.0f",
+        tickformat=",.2f",
         separatethousands=True,
         row=1,
         col=1
